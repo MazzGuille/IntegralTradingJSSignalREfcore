@@ -1,0 +1,119 @@
+﻿@using DevExtreme.AspNet.Mvc;
+@using IntegralTradingJSSignalREfcore.Models;
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h2>Index</h2>
+
+@(Html.DevExtreme().DataGrid<Hvicsv>()
+    .ID("bodyTable")
+    .DataSource(ds => ds.Mvc()
+        .Controller("Hvicsvs")
+        .LoadAction("Get")
+        .InsertAction("Post")
+        .UpdateAction("Put")
+        .DeleteAction("Delete")
+        .Key("Id")
+        
+    )
+    .RemoteOperations(true)   
+    .Columns(columns => {
+
+        columns.AddFor(m => m.Id); 
+
+        columns.AddFor(m => m.Uhml).DataField("uhml").Format("#0.####");
+
+        columns.AddFor(m => m.Ui);
+
+        columns.AddFor(m => m.Strength);
+
+        columns.AddFor(m => m.Sfi);
+
+        columns.AddFor(m => m.Mic);
+
+        columns.AddFor(m => m.ColorGrade);
+
+        columns.AddFor(m => m.TrashId);
+
+        columns.AddFor(m => m.OrderId).Lookup(lookup => lookup
+            .DataSource(ds => ds.WebApi().Controller("Hvicsvs").LoadAction("OrdersLookup").Key("Value"))
+            .ValueExpr("Value")
+            .DisplayExpr("Text")
+        );
+    })
+    .Editing(e => e
+        .AllowAdding(true)
+        .AllowUpdating(true)
+        .AllowDeleting(true)
+    )
+)
+   
+    @section Scripts{
+    <script src="~/js/dist/browser/signalr.js"></script>
+    <script>
+        var connection = new signalR.HubConnectionBuilder()
+                             .withUrl("/hvihub")
+                             .configureLogging(signalR.LogLevel.Information)
+                             .build();
+            connection.start().catch(function (err){
+                return console.error(err.toString());
+            });
+
+            $(
+                 () => {
+                     connection.start().then(() =>{
+                         var store = new devExpress.data.CustomStore({
+                             load: () => {
+                                 setInterval(() => {
+                                connection.invoke("ExecuteProcedure").catch(function (err){
+                                    return console.error(err.toString());
+                                });
+                                }, 5000);
+                             }, key : "uhml"
+                         });
+                         $("#bodyTable").dxDataGrid({
+                             dataSource: store,
+                             visible: true
+                         });
+                        connection.on("ReceiveStoredProcedureResult", (result) => {
+                        store.push([{ type: "update", key: result.uhml, data: result }])
+                        });
+                     })
+                 }
+            );
+
+        //setInterval(() => {
+
+        //    connection.invoke("ExecuteProcedure").catch(function (err) {
+        //        return console.error(err.toString());
+        //    });
+
+        //}, 5000);
+
+        //connection.on("ReceiveStoredProcedureResult", function (result) {
+        //    console.log(result);
+
+        //    //document.getElementById("bodyTable").innerHTML = "";
+        //    result.forEach(m => {
+        //        var tr = document.createElement("tr");
+        //        var filaCelda = 
+        //    `<tr>
+        //        <td>${m.id}</td>
+        //        <td>${m.uhml}</td>
+        //        <td>${m.ui}</td>
+        //        <td>${m.strength}</td>
+        //        <td>${m.sfi}</td>
+        //        <td>${m.mic}</td>
+        //        <td>${m.colorGrade}</td>
+        //        <td>${m.trashId}</td>
+        //        <td>${m.orderId}</td>
+        //    </tr>`;
+        //        tr.innerHTML = filaCelda;
+        //        document.getElementById("bodyTable").append(tr);
+        //    })
+        //});           
+
+    </script>     
+}
+
